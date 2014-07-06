@@ -107,3 +107,62 @@ describe 'app', ->
         .get('/')
         .expect 404
         .end done
+
+  describe 'Implement Error Handling', ->
+    app = undefined
+
+    beforeEach ->
+      app = do express
+
+
+    it 'should return 500 for unhandled error', (done) ->
+      app.use (req, res, next) ->
+        next new Error 'boom!'
+
+      do app.listen
+      request(app)
+        .get('/')
+        .expect 500
+        .end done
+
+    it 'should return 500 for uncaught error', (done) ->
+      app.use (req, res, next) ->
+        throw new Error 'boom!'
+
+      app.listen 4001
+      request(app)
+        .get('/')
+        .expect 500
+        .end done
+
+    it 'should ignore error handlers when `next` is called without an error', (done) ->
+      app.use (req, res, next) ->
+        do next
+
+      app.use (err, req, res, next) ->
+
+      app.use (req, res, next) ->
+        res.end 'm2'
+
+      app.listen 4002
+      request(app)
+        .get('/')
+        .expect 200
+        .expect 'm2'
+        .end done
+
+    it 'should skip normal middlewares if `next` is called with an error', (done) ->
+      app.use (req, res, next) ->
+        next new Error 'boom!'
+
+      app.use (req, res, next) ->
+
+      app.use (err, req, res, next) ->
+        res.end 'e1'
+
+      app.listen 4003
+      request(app)
+        .get('/')
+        .expect 200
+        .expect 'e1'
+        .end done

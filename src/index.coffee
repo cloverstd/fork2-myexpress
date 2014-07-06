@@ -7,10 +7,29 @@ myexpress = ->
       res.statusCode = 404
       do res.end
 
-    next = =>
+    next = (err)=>
       func = this.stack[i++]
-      if func
-        func req, res, next
+      if err # 有 err 传入 'if next is called with an error
+        if func
+          next_func = this.stack[i++]
+          next_func err, req, res, next
+        else
+          res.statusCode = 500
+          res.end '500 - Internal Error'
+
+      else # 无 err 传入 'when next is called without an error
+
+        if func
+          if func.length is 4
+            do next
+          else
+            try
+              func req, res, next
+            catch e
+              res.statusCode = 500
+              res.end '500 - Internal Error'
+        else
+          do next
 
     do next
 

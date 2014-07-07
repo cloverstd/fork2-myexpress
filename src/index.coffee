@@ -11,11 +11,12 @@ myexpress = ->
       func = this.stack[i++]
       if err # 有 err 传入 'if next is called with an error
         if func
-          next_func = this.stack[i++]
-          next_func err, req, res, next
-        else
-          res.statusCode = 500
-          res.end '500 - Internal Error'
+          if func.length is 4
+            func err, req, res, next
+          else
+            next err
+            #res.statusCode = 500
+            #res.end '500 - Internal Error'
 
       else # 无 err 传入 'when next is called without an error
 
@@ -26,16 +27,23 @@ myexpress = ->
             try
               func req, res, next
             catch e
-              res.statusCode = 500
-              res.end '500 - Internal Error'
+              #res.statusCode = 500
+              #res.end '500 - Internal Error'
+              next e
         else
           do next
 
     do next
+    res.statusCode = 500
+    res.end '500 - Internal Error'
+
 
   makeApp.stack = []
   makeApp.use = (func) ->
-    this.stack.push func
+    if func.hasOwnProperty 'stack'
+      this.stack.push.apply this.stack, func.stack
+    else
+      this.stack.push func
 
   return makeApp
 

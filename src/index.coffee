@@ -1,11 +1,23 @@
 http = require 'http'
+Layer = require './layer'
 
 module.exports = ->
   app = (req, res) ->
 
     i = 0
     next = (err) ->
-      func = app.stack[i++]
+      layer = app.stack[i++]
+      if !layer
+        if err
+          res.statusCode = 500
+          res.end '500 - Internal Error'
+        return
+
+      if !layer.match req.url
+        next err
+
+      func = layer.handle
+
       if err
         if func
           if func.length is 4
@@ -34,11 +46,18 @@ module.exports = ->
     server.listen.apply server, arguments
 
   app.stack = []
-  app.use = (func) ->
-    if func.hasOwnProperty 'stack'
-      this.stack.push.apply this.stack, func.stack
-    else
-      this.stack.push func
+  app.use = (path, func)->
+    if arguments.length is 2
+      layer = new Layer(path, func)
+      this.stack.push layer
+
+    else if arguments.length is 1
+      func = path
+      layer = new Layer('/', func)
+      if func.hasOwnProperty 'stack'
+        this.stack.push.apply this.stack, func.stack
+      else
+        this.stack.push layer
 
 
   return app

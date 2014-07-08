@@ -13,8 +13,12 @@ module.exports = ->
           res.end '500 - Internal Error'
         return
 
-      if !layer.match req.url
+      rv = layer.match req.url
+      if !rv
+        req.params = {}
         next err
+      else
+        req.params = rv.params
 
       func = layer.handle
 

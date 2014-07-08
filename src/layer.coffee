@@ -1,17 +1,29 @@
+p2re = require 'path-to-regexp'
+
 class Layer
   constructor: (@prefixPath, @handle) ->
 
   match: (path) ->
-    if @prefixPath is '/'
-      key = "^/.+"
-    else
-      key = "^#{@prefixPath}(/.+)?$"
-    pattern = new RegExp(key)
+    path = decodeURIComponent path
 
-    if path.match pattern
-      return {path: @prefixPath}
+    keys = []
+    re = p2re @prefixPath, keys, {end: false}
 
-    return undefined
+    rv = re.exec path
+
+    if not rv
+      return undefined
+
+    result =
+      path: rv[0]
+      params: {}
+
+    rv = rv[1..]
+
+    for i in [0...rv.length]
+      result.params[keys[i].name] = rv[i]
+
+    return result
 
 
 module.exports = Layer

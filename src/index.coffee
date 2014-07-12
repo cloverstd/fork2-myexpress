@@ -1,4 +1,5 @@
 http = require "http"
+Layer = require '../lib/layer'
 
 module.exports = ->
   app = (req, res, appNext) ->
@@ -6,7 +7,13 @@ module.exports = ->
     currentIndex = 0
 
     middlewareNext = (err) ->
-      middleware = app.stack[currentIndex++]
+      layer = app.stack[currentIndex++]
+
+      if layer
+        if layer.match req.url
+          middleware = layer.handle
+        else
+          middlewareNext err
 
       if err # when middlewareNext is called with an error
         if middleware # middleware is not undefined
@@ -41,7 +48,12 @@ module.exports = ->
     server.listen.apply server, arguments
 
   app.stack = []
-  app.use = (middleware) ->
-    app.stack.push middleware
+  app.use = (path, middleware) ->
+    if arguments.length is 1
+      middleware = path
+      path = '/'
+
+    layer = new Layer(path, middleware)
+    app.stack.push layer
 
   return app

@@ -10,8 +10,10 @@ module.exports = ->
       layer = app.stack[currentIndex++]
 
       if layer
-        if layer.match req.url
+        rv = layer.match req.url
+        if rv
           middleware = layer.handle
+          req.params = rv.params
         else
           middlewareNext err
 

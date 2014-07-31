@@ -6,6 +6,7 @@ module.exports = ->
 
     currentIndex = 0
 
+    originalURL = req.url
     middlewareNext = (err) ->
       layer = app.stack[currentIndex++]
 
@@ -33,6 +34,11 @@ module.exports = ->
           if middleware.length is 4 # error handler middleware
             do middlewareNext
           try
+            if typeof middleware.handle is "function" # sub app
+              subPath = req.url.substring req.url.indexOf("/", 1)
+              originalURL = req.url
+              req.url = subPath
+
             middleware req, res, middlewareNext
           catch e
             middlewareNext e
@@ -57,5 +63,8 @@ module.exports = ->
 
     layer = new Layer(path, middleware)
     app.stack.push layer
+
+  app.handle = (req, res, appNext) ->
+    app req, res, appNext
 
   return app

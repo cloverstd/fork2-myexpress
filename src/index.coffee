@@ -1,67 +1,70 @@
-http = require 'http'
-Layer = require './layer'
+http = require "http"
+Layer = require '../lib/layer'
 
 module.exports = ->
-  app = (req, res) ->
+  app = (req, res, appNext) ->
 
-    i = 0
-    next = (err) ->
-      layer = app.stack[i++]
-      if !layer
-        if err
-          res.statusCode = 500
-          res.end '500 - Internal Error'
-        return
+    currentIndex = 0
 
-      rv = layer.match req.url
-      if !rv
-        req.params = {}
-        next err
-      else
-        req.params = rv.params
+    originalURL = req.url
+    middlewareNext = (err) ->
+      layer = app.stack[currentIndex++]
 
-      func = layer.handle
+      if layer
+        rv = layer.match req.url
+        if rv
+          middleware = layer.handle
+          req.params = rv.params
+        else
+          middlewareNext err
 
-      if err
-        if func
-          if func.length is 4
-            func err, req, res, next
+      if err # when middlewareNext is called with an error
+        if middleware # middleware is not undefined
+          if middleware.length is 4 # error handler middleware
+            middleware err, req, res, middlewareNext
           else
             next err
-        else
-          res.statusCode = 500
-          res.end '500 - Internal Error'
-      else # next without err
-        if func
-          if func.length is 4
-            do next
-          else
-            try
-              func req, res, next
-            catch e
-              next e
+        else # middleware is undefined
+          if appNext
+            appNext err
+          res.writeHead 500
+          res.end "500 - Internal Error"
+      else # when middlewareNext is called without an error
+        if middleware # middleware is not undefined
+          if middleware.length is 4 # error handler middleware
+            do middlewareNext
+          try
+            if typeof middleware.handle is "function" # sub app
+              subPath = req.url.substring req.url.indexOf("/", 1)
+              originalURL = req.url
+              req.url = subPath
 
-    do next
-    res.statusCode = 404
-    res.end '404 - Not Found'
+            middleware req, res, middlewareNext
+          catch e
+            middlewareNext e
+        else # middleware is undefined
+          if appNext
+            appNext err
+          res.writeHead 404
+          res.end "404 - Not Found #{req.url}"
+
+    do middlewareNext
+
 
   app.listen = ->
     server = http.createServer this
     server.listen.apply server, arguments
 
   app.stack = []
-  app.use = (path, func)->
-    if arguments.length is 2
-      layer = new Layer(path, func)
-      this.stack.push layer
+  app.use = (path, middleware) ->
+    if arguments.length is 1
+      middleware = path
+      path = '/'
 
-    else if arguments.length is 1
-      func = path
-      layer = new Layer('/', func)
-      if func.hasOwnProperty 'stack'
-        this.stack.push.apply this.stack, func.stack
-      else
-        this.stack.push layer
+    layer = new Layer(path, middleware)
+    app.stack.push layer
 
+  app.handle = (req, res, appNext) ->
+    app req, res, appNext
 
   return app

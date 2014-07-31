@@ -7,7 +7,7 @@ class Layer
     path = decodeURIComponent path
 
     keys = []
-    re = path2RegExp @prefixPath, keys, {end: false}
+    re = path2RegExp @prefixPath, keys, {end: true}
 
     rv = re.exec path
 

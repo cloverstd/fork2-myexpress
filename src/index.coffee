@@ -1,5 +1,6 @@
 http = require "http"
 Layer = require '../lib/layer'
+makeRoute = require '../lib/route'
 
 module.exports = ->
   app = (req, res, appNext) ->
@@ -66,5 +67,10 @@ module.exports = ->
 
   app.handle = (req, res, appNext) ->
     app req, res, appNext
+
+  app.get = (path, handle) ->
+    handle = makeRoute "get", handle
+    layer = new Layer(path, handle)
+    app.stack.push layer
 
   return app
